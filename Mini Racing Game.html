@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>🚗 Mini Racing Game</title>
+<style>
+body {
+  margin: 0;
+  background: linear-gradient(#111, #000);
+  color: white;
+  text-align: center;
+  font-family: Arial, sans-serif;
+}
+h1 { margin: 15px 0; }
+#topBar {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  margin: 10px auto;
+  width: 90%;
+  max-width: 800px;
+}
+#score {
+  font-size: 20px;
+  text-align: left;
+}
+#leaderboardBox {
+  text-align: left;
+  font-size: 16px;
+  background: rgba(255,255,255,0.08);
+  padding: 8px 12px;
+  border-radius: 8px;
+  width: 220px;
+}
+#gameArea {
+  position: relative;
+  margin: 20px auto;
+  width: 400px; height: 600px;
+  background: linear-gradient(#555 0%, #111 100%);
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 0 30px rgba(0,0,0,0.9);
+}
+.laneStripe {
+  position: absolute;
+  width: 8px;
+  height: 40px;
+  background: #fff;
+  left: 50%;
+  transform: translateX(-50%);
+  top: -40px;
+  border-radius: 2px;
+  box-shadow: 0 0 5px #fff;
+  animation: moveStripe 1s linear infinite;
+}
+@keyframes moveStripe {
+  0% { top: -40px; }
+  100% { top: 600px; }
+}
+.car {
+  position: absolute;
+  bottom: 20px;
+  left: 180px;
+  width: 50px; height: 90px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: left 0.2s ease-in-out;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.7);
+}
+.obstacle {
+  position: absolute;
+  width: 50px; height: 90px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: 0 0 15px rgba(255,255,0,0.7);
+}
+#overlay, #nameOverlay, #carSelectOverlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 22px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s;
+  padding: 10px;
+  box-sizing: border-box;
+}
+#overlay.show, #nameOverlay.show, #carSelectOverlay.show {
+  opacity: 1;
+  pointer-events: all;
+}
+.btn {
+  padding: 10px 20px;
+  margin-top: 15px;
+  font-size: 18px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.btn:hover { background: #218838; }
+#nameOverlay input {
+  padding: 10px;
+  font-size: 18px;
+  border-radius: 6px;
+  border: none;
+  margin-top: 10px;
+  text-align: center;
+}
+.car-choice {
+  display: inline-block;
+  width: 60px;
+  height: 100px;
+  margin: 10px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.car-choice.selected {
+  border: 2px solid #0f0;
+  box-shadow: 0 0 10px #0f0;
+}
+#controls {
+  margin-top: 10px;
+}
+#controls button {
+  padding: 15px 30px;
+  margin: 5px;
+  font-size: 22px;
+  border-radius: 8px;
+  border: none;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+#controls button:hover { background: #0062cc; }
+footer { margin: 20px 0; font-size: 14px; color: #aaa; }
+.explosion {
+  position: absolute;
+  width: 80px; height: 80px;
+  background: radial-gradient(circle, #ff0 0%, #f00 60%, transparent 70%);
+  border-radius: 50%;
+  animation: explode 0.5s forwards;
+}
+@keyframes explode {
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+</style>
+</head>
+<body>
+<h1>🚗 Mini Racing Game</h1>
+
+<div id="topBar">
+  <div id="score">
+    <span id="carIcon" style="display:inline-block;width:24px;height:40px;background-size:contain;vertical-align:middle;margin-right:6px;"></span>
+    <span id="playerLabel">Player: ---</span> | Score: 0
+  </div>
+  <div id="leaderboardBox">
+    <b>🏆 Leaderboard</b>
+    <div id="leaderboard"></div>
+  </div>
+</div>
+
+<div id="gameArea">
+  <!-- Road stripes -->
+  <div id="stripes"></div>
+  <div id="car" class="car"></div>
+
+  <div id="overlay">
+    <div id="finalScore">💥 Crash!</div>
+    <button class="btn" onclick="restartGame()">Restart</button>
+  </div>
+
+  <div id="carSelectOverlay" class="show">
+    <div>Select Your Car:</div>
+    <div>
+      <div class="car-choice" style="background-image:url('car1.png')" onclick="selectCar(this,'car1.png')"></div>
+      <div class="car-choice" style="background-image:url('car2.png')" onclick="selectCar(this,'car2.png')"></div>
+      <div class="car-choice" style="background-image:url('car3.png')" onclick="selectCar(this,'car3.png')"></div>
+    </div>
+    <button class="btn" onclick="confirmCar()">Next</button>
+  </div>
+
+  <div id="nameOverlay">
+    <div>Enter Your Name:</div>
+    <input type="text" id="playerNameInput" placeholder="Your Name">
+    <button class="btn" onclick="setPlayerName()">Start Game</button>
+  </div>
+</div>
+
+<div id="controls">
+  <button onclick="moveCar(-1)">⬅️</button>
+  <button onclick="moveCar(1)">➡️</button>
+</div>
+
+<footer>Made by Akbar</footer>
+
+<script>
+const gameArea = document.getElementById("gameArea");
+const car = document.getElementById("car");
+const scoreEl = document.getElementById("score");
+const overlay = document.getElementById("overlay");
+const nameOverlay = document.getElementById("nameOverlay");
+const carSelectOverlay = document.getElementById("carSelectOverlay");
+const finalScoreEl = document.getElementById("finalScore");
+const nameInput = document.getElementById("playerNameInput");
+const leaderboardEl = document.getElementById("leaderboard");
+const carIconEl = document.getElementById("carIcon");
+const playerLabelEl = document.getElementById("playerLabel");
+
+let carX = 180;
+let speed = 4;
+let score = 0;
+let gameRunning = false;
+let obstacleInterval, scoreInterval;
+let playerName = "---";
+let selectedCarImage = "car1.png";
+
+const obstacleSprites = ["car1.png","car2.png","car3.png"];
+
+// Create road stripes
+for(let i=0;i<10;i++){
+  const stripe = document.createElement('div');
+  stripe.className='laneStripe';
+  stripe.style.top = (i*60 - 40) + 'px';
+  gameArea.appendChild(stripe);
+}
+
+document.addEventListener("keydown", e => {
+  if(!gameRunning) return;
+  if(e.key==="ArrowLeft") moveCar(-1);
+  if(e.key==="ArrowRight") moveCar(1);
+});
+
+function moveCar(dir){
+  if(!gameRunning) return;
+  carX += dir*20;
+  carX = Math.max(0, Math.min(350, carX));
+  car.style.left = carX + "px";
+}
+
+function createObstacle(){
+  const obs = document.createElement("div");
+  obs.className="obstacle";
+  obs.style.left=Math.floor(Math.random()*340)+"px";
+  obs.style.backgroundImage=`url('${obstacleSprites[Math.floor(Math.random()*obstacleSprites.length)]}')`;
+  gameArea.appendChild(obs);
+  moveObstacle(obs);
+}
+
+function moveObstacle(obs){
+  let obsY=-100;
+  const interval=setInterval(()=>{
+    if(!gameRunning){ clearInterval(interval); return;}
+    obsY+=speed;
+    obs.style.top=obsY+"px";
+
+    const carRect=car.getBoundingClientRect();
+    const obsRect=obs.getBoundingClientRect();
+
+    if (!(carRect.right<obsRect.left || carRect.left>obsRect.right || carRect.bottom<obsRect.top || carRect.top>obsRect.bottom)){
+      gameOver();
+      clearInterval(interval);
+    }
+
+    if(obsY>600){
+      obs.remove();
+      score++;
+      updateScore();
+      speed=4+Math.floor(score/5);
+      clearInterval(interval);
+    }
+  },20);
+}
+
+function gameOver(){
+  gameRunning=false;
+  clearInterval(obstacleInterval);
+  clearInterval(scoreInterval);
+
+  // Explosion
+  const exp=document.createElement('div');
+  exp.className='explosion';
+  exp.style.left=carX+'px';
+  exp.style.bottom='20px';
+  gameArea.appendChild(exp);
+
+  saveScore(playerName,score,selectedCarImage);
+  updateLeaderboard();
+  overlay.classList.add("show");
+  finalScoreEl.textContent=`💥 Crash, ${playerName}! Final Score: ${score}`;
+
+  setTimeout(()=>{exp.remove();},500);
+}
+
+function startGame(){
+  overlay.classList.remove("show");
+  gameRunning=true;
+  carX=180; car.style.left=carX+'px';
+  score=0; speed=4;
+  car.style.backgroundImage=`url('${selectedCarImage}')`;
+  updateScore();
+  document.querySelectorAll(".obstacle").forEach(o=>o.remove());
+  obstacleInterval=setInterval(()=>{if(gameRunning) createObstacle();},1500);
+  scoreInterval=setInterval(()=>{if(gameRunning){score++; updateScore();}},1000);
+}
+
+function restartGame(){ startGame(); }
+
+function setPlayerName(){
+  const name=nameInput.value.trim();
+  if(name) playerName=name;
+  nameOverlay.classList.remove("show");
+  updateLeaderboard();
+  startGame();
+}
+
+function updateScore(){
+  playerLabelEl.textContent=`Player: ${playerName} | Score: ${score}`;
+  carIconEl.style.backgroundImage=`url('${selectedCarImage}')`;
+}
+
+function selectCar(el,imgUrl){
+  document.querySelectorAll(".car-choice").forEach(c=>c.classList.remove("selected"));
+  el.classList.add("selected");
+  selectedCarImage=imgUrl;
+}
+
+function confirmCar(){
+  if(!selectedCarImage) return;
+  carSelectOverlay.classList.remove("show");
+  nameOverlay.classList.add("show");
+}
+
+function saveScore(name,score,carImg){
+  let scores=JSON.parse(localStorage.getItem("leaderboard"))||[];
+  scores.push({name,score,car:carImg});
+  scores.sort((a,b)=>b.score-a.score);
+  scores=scores.slice(0,5);
+  localStorage.setItem("leaderboard",JSON.stringify(scores));
+}
+
+function updateLeaderboard(){
+  let scores=JSON.parse(localStorage.getItem("leaderboard"))||[];
+  if(scores.length===0){ leaderboardEl.textContent="No scores yet."; return; }
+  leaderboardEl.innerHTML="";
+  scores.forEach((s,i)=>{
+    leaderboardEl.innerHTML+=`<div><span style="display:inline-block;width:20px;height:30px;background-image:url('${s.car}');background-size:contain;vertical-align:middle;margin-right:6px;"></span>${i+1}. ${s.name} - ${s.score}</div>`;
+  });
+}
+
+updateLeaderboard();
+</script>
+</body>
+</html>
